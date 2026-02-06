@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="dd91eec1-dabe-4e19-a226-6fe4c7a91d55" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="logs-system-apiFlow" doc:id="3f7e9c3a-98cd-44e0-98b7-7bd6d9918e7d" >
+		<http:listener doc:name="Listener" doc:id="2d018482-542a-4403-88e5-52878252dbd5" config-ref="HTTP_Listener_config" path="/system"/>
+		<set-variable value="#[attributes.queryParams.correlationId]" doc:name="Set Variable" doc:id="49f73ba9-2581-48c0-b860-794fcd4c4b8b" variableName="correlationId"/>
+		<logger level="INFO" doc:name="Logger" doc:id="c53943eb-e552-4274-9382-6c0e3caebf64" message='#[{&#10;	"correlationId": vars.correlationId,&#10;	"message": "flow Started for system API",&#10;	"API Name": app.name&#10;}]'/>
+		<choice doc:name="Choice" doc:id="adbe3258-f0cd-4bd8-8cbe-e1d969396cee" >
+			<when expression="#[attributes.queryParams.errorCode == '500']">
+				<raise-error doc:name="Raise error" doc:id="37b9195e-0768-4516-83be-9ca97f1b59d1" type="ERROR_TYPE:MANUAL_ERROR" description="Error Occurred in the flow."/>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="9b4779ed-310b-41e9-8d3f-bece6a8d10f7">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	message: "flow completed for system API"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="0b897591-c704-485e-9166-3b301c6a589e" message='#[{&#10;	"correlationId": vars.correlationId,&#10;	"message": "flow ended for system API",&#10;	"API Name": app.name&#10;}]'/>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="aca6bc93-8424-4adf-93bf-a668b104f6de" type="ERROR_TYPE:MANUAL_ERROR">
+				<logger level="INFO" doc:name="Logger" doc:id="5845eb20-1e7e-43c4-b81c-3d0749cbe846" message='#[{&#10;	"correlationId": vars.correlationId,&#10;	"message": "error occurred in the flow for system api",&#10;	"Error Message": error.errorMessage,&#10;	"Error Type": error.errorType,&#10;	"API Name": app.name&#10;}]'/>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>
